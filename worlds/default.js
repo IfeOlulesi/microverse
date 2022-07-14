@@ -112,7 +112,7 @@ export function init(Constants) {
             card: {
                 translation: [-12, -0.4, -10.2],
                 rotation: [0, -Math.PI / 2, 0],
-                layers: ["pointer", "portal"],
+                layers: ["pointer"],
                 className: "PortalActor",
                 color: 16737996,
                 cornerRadius: 0.05,
@@ -234,7 +234,7 @@ export function init(Constants) {
                 runs: [{text: `
 translation: [-12, -0.4, -10.2],
 rotation: [0, -1.5707963267948966, 0],
-layers: ["pointer", "portal"],
+layers: ["pointer"],
 className: "PortalActor",
 color: 16737996,
 cornerRadius: 0.05,

@@ -13,7 +13,9 @@ export class PortalActor extends CardActor {
     init(options) {
         super.init(options);
         this._isOpen = true;
+        this.addLayer("portal");
         this._portalTime = this.now();
+        this.listen("isOpenSet", this.setIsOpen);
     }
 
     get isPortal() { return true; }
@@ -26,6 +28,11 @@ export class PortalActor extends CardActor {
     get sparkle() { return this._cardData.sparkle; }
 
     get pawn() { return PortalPawn; }
+
+    setIsOpen() { console.log(`setIsOpen ${this.isOpen}`);
+        if (this.isOpen) this.addLayer("portal");
+        else this.removeLayer("portal");
+    }
 }
 PortalActor.register("PortalActor");
 
