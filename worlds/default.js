@@ -65,7 +65,7 @@ export function init(Constants) {
                 textureType: "image",
                 textureLocation: "./assets/images/CroquetLogo_RGB.jpg",
                 cardURL: "https://croquet.io",
-                cardHilite: 0xffffaa, 
+                cardHilite: 0xffffaa,
                 behaviorModules: ["URLLink"],
                 fullBright: true,
                 frameColor: 0xcccccc,

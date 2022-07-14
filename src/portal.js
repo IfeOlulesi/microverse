@@ -52,6 +52,8 @@ export class PortalPawn extends CardPawn {
 
         this.shellListener = (command, data) => this.receiveFromShell(command, data);
         addShellListener(this.shellListener);
+
+        this.subscribe("avatar", { event: "gatherPortalSpecs", handling: "immediate" }, this.updatePortal);
     }
 
     destroy() {
@@ -193,14 +195,14 @@ export class PortalPawn extends CardPawn {
         return [0, 0, -1];
     }
 
-    update(t) {
-        super.update();
-        this.updatePortalCamera();
+    updatePortal({ callback, force }) {
+        // invoked synchronously for message scope avatar:gatherPortalSpecs
+        this.updatePortalCamera(callback, force);
         this.updatePortalMaterial();
         this.updateParticles();
     }
 
-    updatePortalCamera() {
+    updatePortalCamera(callback, force) {
         // if the portal's position with respect to the camera has changed, tell the
         // embedded world to re-render itself from the suitably adjusted camera angle.
         // while these changes continue, the shell will take over the scheduling of
@@ -208,25 +210,27 @@ export class PortalPawn extends CardPawn {
         // always finished its rendering by the time the outer world (and the portal)
         // is rendered.
         if (!this.portalId) return;
+
         const { targetMatrix, targetMatrixBefore, portalId } = this;
-        const renderMgr = this.service("ThreeRenderManager");
-        const { camera } = renderMgr;
-        camera.updateMatrixWorld(true); // evidently not guaranteed to have been handled since last time, perhaps because the "synced" rendering is decoupled from render-objects' update() invocations
-        this.renderObject.updateMatrixWorld(true); // ditto
-        const frustum = new THREE.Frustum()
-        const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
-        frustum.setFromProjectionMatrix(matrix);
-        // if the portal isn't on view, tell the shell there's no need to do synchronised
-        // rendering right now (even though the portal is moving)
-        if (!frustum.intersectsObject(this.renderObject.children[0])) {
-            sendToShell("portal-update", { portalId, cameraMatrix: null });
-            return;
-        }
+        const { camera } = this.service("ThreeRenderManager");
+        // objects' matrices are not guaranteed to have been updated, because this is
+        // decoupled from THREE rendering.
+        camera.updateMatrixWorld(true);
+        this.renderObject.updateMatrixWorld(true);
         targetMatrix.copy(this.renderObject.matrixWorld);
         targetMatrix.invert();
         targetMatrix.multiply(camera.matrixWorld);
-        if (!targetMatrixBefore.equals(targetMatrix)) {
-            sendToShell("portal-update", { portalId, cameraMatrix: targetMatrix.elements, updateTime: Date.now() });
+        if (force || !targetMatrixBefore.equals(targetMatrix)) {
+            const frustum = new THREE.Frustum();
+            const matrix = new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+            frustum.setFromProjectionMatrix(matrix);
+            // if the portal isn't on view (though this is very approximate, based on
+            // its bounding sphere), tell the shell there's no need to do synchronised
+            // rendering right now - even though the portal is moving
+            const remoteMatrix = frustum.intersectsObject(this.renderObject.children[0])
+                ? targetMatrix.elements
+                : null;
+            callback({ portalId, cameraMatrix: remoteMatrix });
             targetMatrixBefore.copy(targetMatrix);
         }
     }
@@ -353,10 +357,8 @@ export class PortalPawn extends CardPawn {
         switch (command) {
             case "portal-opened":
                 this.portalId = portalId;
-                this.updatePortalCamera();
                 break;
             case "frame-type":
-                this.updatePortalCamera();
                 this.setGhostWorld({v: this.actor._ghostWorld});
                 break;
         }
